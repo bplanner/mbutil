@@ -44,6 +44,10 @@ if __name__ == '__main__':
             you can remove callbacks specifying --grid_callback="" ''',
         default='grid')
 
+    parser.add_option('--grid_gzip', dest='gzip',
+        help='''Option to gzip the UTFGrid tiles. Either "true", "false", or "only".''',
+        default='false')
+
     (options, args) = parser.parse_args()
 
     # Transfer operations

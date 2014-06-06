@@ -10,6 +10,7 @@
 # https://github.com/mapbox/node-mbtiles/blob/master/lib/schema.sql
 
 import sqlite3, uuid, sys, logging, time, os, json, zlib, re
+import gzip
 
 logger = logging.getLogger(__name__)
 
@@ -314,9 +315,14 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
             if callback not in (None, "", "false", "null"):
                 text = '%s(%s);' % (callback, text)
 
-            f = open("%s" % grid, 'w')
-            f.write(text)
-            f.close()
+            if kwargs.get('gzip') in ("true", "false"):
+                f = open("%s" % grid, 'w')
+                f.write(text)
+                f.close()
+            if kwargs.get('gzip') in ("true", "only"):
+                fgz = gzip.open("%s.gz" % grid, 'w')
+                fgz.write(text)
+                fgz.close()
             count += 1
         done = done + 1
         for c in msg: sys.stdout.write(chr(8))

@@ -239,6 +239,7 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         open(layer_json,'w').write('grid(' + json.dumps(formatter_json) + ')')
 
     tiles = con.execute('select zoom_level, tile_column, tile_row, tile_data from tiles;')
+    logger.info('Exporting %s tiles...' % (count))
     t = tiles.fetchone()
     while t:
         z = t[0]
@@ -246,7 +247,6 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         y = t[2]
         if kwargs.get('scheme') == 'xyz':
             y = flip_y(z,y)
-            print('flipping')
             tile_dir = os.path.join(base_path, str(z), str(x))
         elif kwargs.get('scheme') == 'wms':
             tile_dir = os.path.join(base_path,
@@ -269,8 +269,10 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         f.close()
         done = done + 1
         for c in msg: sys.stdout.write(chr(8))
-        logger.info('%s / %s tiles exported' % (done, count))
+        # logger.info('%s / %s tiles exported' % (done, count))
         t = tiles.fetchone()
+
+    logger.info('%s tiles exported' % (count))
 
     # grids
     callback = kwargs.get('callback')
@@ -282,6 +284,8 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         g = grids.fetchone()
     except sqlite3.OperationalError:
         g = None # no grids table
+    logger.info('Exporting %s grids...' % (count))
+    count = 0
     while g:
         zoom_level = g[0] # z
         tile_column = g[1] # x
@@ -297,7 +301,6 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         if not os.path.isdir(grid_dir):
             os.makedirs(grid_dir)
         grid = os.path.join(grid_dir,'%s.grid.json' % (y))
-        f = open(grid, 'w')
         grid_json = json.loads(zlib.decompress(g[3]).decode('utf-8'))
         # join up with the grid 'data' which is in pieces when stored in mbtiles file
         grid_data = grid_data_cursor.fetchone()
@@ -305,13 +308,19 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         while grid_data:
             data[grid_data[0]] = json.loads(grid_data[1])
             grid_data = grid_data_cursor.fetchone()
-        grid_json['data'] = data
-        if callback in (None, "", "false", "null"):
-            f.write(json.dumps(grid_json))
-        else:
-            f.write('%s(%s);' % (callback, json.dumps(grid_json)))
-        f.close()
+        if data:
+            grid_json['data'] = data
+            text = json.dumps(grid_json)
+            if callback not in (None, "", "false", "null"):
+                text = '%s(%s);' % (callback, text)
+
+            f = open("%s" % grid, 'w')
+            f.write(text)
+            f.close()
+            count += 1
         done = done + 1
         for c in msg: sys.stdout.write(chr(8))
-        logger.info('%s / %s grids exported' % (done, count))
+        # logger.info('%s / %s grids exported' % (done, count))
         g = grids.fetchone()
+
+    logger.info('%s grids exported' % (count))
